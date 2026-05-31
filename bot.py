@@ -11,7 +11,7 @@ intents = discord.Intents.default()
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
-# ------------------ DATA ------------------
+# ------------------ SAFE DATA LOAD ------------------
 
 def load_data():
     if not os.path.exists(DATA_FILE):
@@ -23,8 +23,17 @@ def load_data():
             }
         }
 
-    with open(DATA_FILE, "r") as f:
-        return json.load(f)
+    try:
+        with open(DATA_FILE, "r") as f:
+            return json.load(f)
+    except:
+        return {
+            "all_time": {},
+            "weekly": {
+                "start_date": None,
+                "users": {}
+            }
+        }
 
 def save_data(data):
     with open(DATA_FILE, "w") as f:
@@ -107,5 +116,120 @@ async def progress(interaction: discord.Interaction):
     net = loss - gain
 
     await interaction.response.send_message(
-        f"📊 Loss: {loss:.2f} lbs\n⚠️ Gain: {gain:.2f} lbs\n🔥 Net: {net:.2f} lbs"
+        f"📊 LOSS: {loss:.2f} lbs\n⚠️ GAIN: {gain:.2f} lbs\n🔥 NET: {net:.2f} lbs"
     )
+
+# ------------------ ALL-TIME LEADERBOARD ------------------
+
+@tree.command(name="leaderboard", description="All-time leaderboard")
+async def leaderboard(interaction: discord.Interaction):
+    data = load_data()
+
+    ranking = sorted(
+        data["all_time"].items(),
+        key=lambda x: (x[1]["loss"] - x[1]["gain"]),
+        reverse=True
+    )
+
+    embed = discord.Embed(
+        title="💀 ALL-TIME MAFIA LEADERBOARD 💀",
+        color=0x1a1a1a
+    )
+
+    medals = ["🥇 DON", "🥈 CAPO", "🥉 UNDERBOSS"]
+
+    for i, (uid, info) in enumerate(ranking[:10]):
+        user = await client.fetch_user(int(uid))
+        net = info["loss"] - info["gain"]
+
+        rank = medals[i] if i < 3 else f"🕶️ SOLDIER #{i+1}"
+
+        embed.add_field(
+            name=f"{rank} — {user.name}",
+            value=f"🔥 {net:.2f} lbs net",
+            inline=False
+        )
+
+    await interaction.response.send_message(embed=embed)
+
+# ------------------ WEEKLY LEADERBOARD ------------------
+
+@tree.command(name="weekly", description="Weekly leaderboard")
+async def weekly(interaction: discord.Interaction):
+    data = load_data()
+
+    start_date = data["weekly"]["start_date"] or "Not started yet"
+
+    ranking = sorted(
+        data["weekly"]["users"].items(),
+        key=lambda x: (x[1]["loss"] - x[1]["gain"]),
+        reverse=True
+    )
+
+    embed = discord.Embed(
+        title="📅 WEEKLY MAFIA LEADERBOARD 📅",
+        description=f"Week started: **{start_date}**",
+        color=0x2b2b2b
+    )
+
+    medals = ["🥇 DON", "🥈 CAPO", "🥉 UNDERBOSS"]
+
+    for i, (uid, info) in enumerate(ranking[:10]):
+        user = await client.fetch_user(int(uid))
+        net = info["loss"] - info["gain"]
+
+        rank = medals[i] if i < 3 else f"🕶️ SOLDIER #{i+1}"
+
+        embed.add_field(
+            name=f"{rank} — {user.name}",
+            value=f"🔥 {net:.2f} lbs net",
+            inline=False
+        )
+
+    await interaction.response.send_message(embed=embed)
+
+# ------------------ RESET WEEK ------------------
+
+@tree.command(name="resetweek", description="Reset weekly leaderboard (admin only)")
+async def resetweek(interaction: discord.Interaction):
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("❌ Admin only.")
+        return
+
+    data = load_data()
+
+    data["weekly"] = {
+        "start_date": datetime.utcnow().strftime("%Y-%m-%d"),
+        "users": {}
+    }
+
+    save_data(data)
+
+    await interaction.response.send_message("📅 Weekly leaderboard reset.")
+
+# ------------------ HELP ------------------
+
+@tree.command(name="help", description="Show commands")
+async def help_command(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="💀 Mafia Weight Loss Bot",
+        color=0x111111
+    )
+
+    embed.add_field(name="/loss", value="Log weight loss", inline=False)
+    embed.add_field(name="/gain", value="Log weight gain", inline=False)
+    embed.add_field(name="/progress", value="View your stats", inline=False)
+    embed.add_field(name="/leaderboard", value="All-time leaderboard", inline=False)
+    embed.add_field(name="/weekly", value="Weekly leaderboard", inline=False)
+    embed.add_field(name="/resetweek", value="Reset weekly leaderboard", inline=False)
+
+    await interaction.response.send_message(embed=embed)
+
+# ------------------ READY ------------------
+
+@client.event
+async def on_ready():
+    await tree.sync()
+    print(f"Logged in as {client.user}")
+
+client.run(TOKEN)
