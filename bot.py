@@ -76,20 +76,28 @@ async def leaderboard(interaction: discord.Interaction):
     )
 
     embed = discord.Embed(
-        title="💀 Mafia Weight Loss Leaderboard",
-        description="Ranked by total weight lost (lbs)",
-        color=0x000000
+        title="💀 MAFIA WEIGHT LOSS LEADERBOARD 💀",
+        description="Top members ranked by total lbs lost",
+        color=0x1a1a1a
     )
 
-    medals = ["🥇", "🥈", "🥉"]
+    embed.set_footer(text="Mafia Weight Loss League • Stay disciplined 💀")
+
+    medals = ["🥇 DON", "🥈 CAPO", "🥉 UNDERBOSS"]
 
     for i, (uid, info) in enumerate(ranking[:10]):
         user = await client.fetch_user(int(uid))
-        medal = medals[i] if i < 3 else f"{i+1}."
+        loss = info["total_loss"]
+
+        # Rank styling
+        if i < 3:
+            rank = medals[i]
+        else:
+            rank = f"🕶️ SOLDIER #{i+1}"
 
         embed.add_field(
-            name=f"{medal} {user.name}",
-            value=f"🔥 {info['total_loss']:.2f} lbs lost",
+            name=f"{rank} — {user.name}",
+            value=f"🔥 **{loss:.2f} lbs lost**",
             inline=False
         )
 
