@@ -3,7 +3,7 @@ from discord import app_commands
 import json
 import os
 
-TOKEN = os.getenv("TOKEN")  # 24/7 hosting
+TOKEN = os.getenv("TOKEN")
 
 DATA_FILE = "data.json"
 
@@ -28,7 +28,7 @@ def parse_loss(loss):
 
 # ------------------ WEIGH IN ------------------
 
-@tree.command(name="weighin", description="Log how much weight you lost (lbs)")
+@tree.command(name="weighin", description="Log weight lost in lbs")
 async def weighin(interaction: discord.Interaction, loss: str):
     data = load_data()
     user_id = str(interaction.user.id)
@@ -36,11 +36,11 @@ async def weighin(interaction: discord.Interaction, loss: str):
     try:
         loss_value = parse_loss(loss)
     except:
-        await interaction.response.send_message("❌ Enter a valid number (e.g. 1.2)", ephemeral=True)
+        await interaction.response.send_message("❌ Enter a valid number (e.g. 2.5)")
         return
 
     if loss_value <= 0:
-        await interaction.response.send_message("❌ Must be a positive number.", ephemeral=True)
+        await interaction.response.send_message("❌ Must be a positive number.")
         return
 
     if user_id not in data:
@@ -55,8 +55,7 @@ async def weighin(interaction: discord.Interaction, loss: str):
     save_data(data)
 
     await interaction.response.send_message(
-        f"💀 Logged: -{loss_value}lbs lost",
-        ephemeral=True
+        f"💀 Logged: -{loss_value}lbs lost"
     )
 
 # ------------------ LEADERBOARD ------------------
@@ -77,11 +76,9 @@ async def leaderboard(interaction: discord.Interaction):
 
     embed = discord.Embed(
         title="💀 MAFIA WEIGHT LOSS LEADERBOARD 💀",
-        description="Top members ranked by total lbs lost",
+        description="Ranked by total lbs lost",
         color=0x1a1a1a
     )
-
-    embed.set_footer(text="Mafia Weight Loss League • Stay disciplined 💀")
 
     medals = ["🥇 DON", "🥈 CAPO", "🥉 UNDERBOSS"]
 
@@ -89,7 +86,6 @@ async def leaderboard(interaction: discord.Interaction):
         user = await client.fetch_user(int(uid))
         loss = info["total_loss"]
 
-        # Rank styling
         if i < 3:
             rank = medals[i]
         else:
@@ -97,9 +93,11 @@ async def leaderboard(interaction: discord.Interaction):
 
         embed.add_field(
             name=f"{rank} — {user.name}",
-            value=f"🔥 **{loss:.2f} lbs lost**",
+            value=f"🔥 {loss:.2f} lbs lost",
             inline=False
         )
+
+    embed.set_footer(text="Mafia Weight Loss League 💀")
 
     await interaction.response.send_message(embed=embed)
 
@@ -111,14 +109,13 @@ async def progress(interaction: discord.Interaction):
     user_id = str(interaction.user.id)
 
     if user_id not in data:
-        await interaction.response.send_message("No records yet.", ephemeral=True)
+        await interaction.response.send_message("No records yet.")
         return
 
     user = data[user_id]
 
     await interaction.response.send_message(
-        f"📊 You’ve lost **{user['total_loss']:.2f} lbs** total",
-        ephemeral=True
+        f"📊 You’ve lost **{user['total_loss']:.2f} lbs** total"
     )
 
 # ------------------ RESET ------------------
@@ -126,7 +123,7 @@ async def progress(interaction: discord.Interaction):
 @tree.command(name="resetcompetition", description="Reset leaderboard (admin only)")
 async def resetcompetition(interaction: discord.Interaction):
     if not interaction.user.guild_permissions.administrator:
-        await interaction.response.send_message("❌ Admin only.", ephemeral=True)
+        await interaction.response.send_message("❌ Admin only.")
         return
 
     save_data({})
@@ -138,19 +135,19 @@ async def resetcompetition(interaction: discord.Interaction):
 async def help_command(interaction: discord.Interaction):
     embed = discord.Embed(
         title="💀 Mafia Weight Loss Bot Help",
-        description="All available commands:",
+        description="Available commands:",
         color=0x111111
     )
 
     embed.add_field(
         name="/weighin loss: X",
-        value="Log weight lost in lbs (example: /weighin loss: 2.5)",
+        value="Log weight lost in lbs (example: 2.5)",
         inline=False
     )
 
     embed.add_field(
         name="/leaderboard",
-        value="Shows who has lost the most weight",
+        value="Shows mafia rankings",
         inline=False
     )
 
@@ -162,13 +159,13 @@ async def help_command(interaction: discord.Interaction):
 
     embed.add_field(
         name="/resetcompetition",
-        value="(Admin only) Resets the leaderboard",
+        value="(Admin only) resets leaderboard",
         inline=False
     )
 
     embed.set_footer(text="Mafia Weight Loss League 💀")
 
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+    await interaction.response.send_message(embed=embed)
 
 # ------------------ READY ------------------
 
