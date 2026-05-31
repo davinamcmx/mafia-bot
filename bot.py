@@ -3,7 +3,7 @@ from discord import app_commands
 import json
 import os
 
-TOKEN = os.getenv("TOKEN")  # for 24/7 hosting
+TOKEN = os.getenv("TOKEN")  # 24/7 hosting
 
 DATA_FILE = "data.json"
 
@@ -24,11 +24,11 @@ def save_data(data):
         json.dump(data, f, indent=4)
 
 def parse_loss(loss):
-    return float(loss.replace("kg", "").strip())
+    return float(loss.replace("lbs", "").replace("lb", "").strip())
 
 # ------------------ WEIGH IN ------------------
 
-@tree.command(name="weighin", description="Log how much weight you lost")
+@tree.command(name="weighin", description="Log how much weight you lost (lbs)")
 async def weighin(interaction: discord.Interaction, loss: str):
     data = load_data()
     user_id = str(interaction.user.id)
@@ -55,7 +55,7 @@ async def weighin(interaction: discord.Interaction, loss: str):
     save_data(data)
 
     await interaction.response.send_message(
-        f"💀 Logged: -{loss_value}kg lost",
+        f"💀 Logged: -{loss_value}lbs lost",
         ephemeral=True
     )
 
@@ -77,7 +77,7 @@ async def leaderboard(interaction: discord.Interaction):
 
     embed = discord.Embed(
         title="💀 Mafia Weight Loss Leaderboard",
-        description="Ranked by total weight lost",
+        description="Ranked by total weight lost (lbs)",
         color=0x000000
     )
 
@@ -89,7 +89,7 @@ async def leaderboard(interaction: discord.Interaction):
 
         embed.add_field(
             name=f"{medal} {user.name}",
-            value=f"🔥 {info['total_loss']:.2f} kg lost",
+            value=f"🔥 {info['total_loss']:.2f} lbs lost",
             inline=False
         )
 
@@ -109,7 +109,7 @@ async def progress(interaction: discord.Interaction):
     user = data[user_id]
 
     await interaction.response.send_message(
-        f"📊 You’ve lost **{user['total_loss']:.2f} kg** total",
+        f"📊 You’ve lost **{user['total_loss']:.2f} lbs** total",
         ephemeral=True
     )
 
@@ -136,13 +136,13 @@ async def help_command(interaction: discord.Interaction):
 
     embed.add_field(
         name="/weighin loss: X",
-        value="Log weight lost (example: /weighin loss: 1.2)",
+        value="Log weight lost in lbs (example: /weighin loss: 2.5)",
         inline=False
     )
 
     embed.add_field(
         name="/leaderboard",
-        value="Shows who has lost the most weight in the Mafia",
+        value="Shows who has lost the most weight",
         inline=False
     )
 
