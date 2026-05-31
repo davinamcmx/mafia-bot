@@ -2,9 +2,9 @@ import discord
 from discord import app_commands
 import json
 import os
+from datetime import datetime
 
 TOKEN = os.getenv("TOKEN")
-
 DATA_FILE = "data.json"
 
 intents = discord.Intents.default()
@@ -15,7 +15,14 @@ tree = app_commands.CommandTree(client)
 
 def load_data():
     if not os.path.exists(DATA_FILE):
-        return {}
+        return {
+            "all_time": {},
+            "weekly": {
+                "start_date": None,
+                "users": {}
+            }
+        }
+
     with open(DATA_FILE, "r") as f:
         return json.load(f)
 
@@ -33,24 +40,22 @@ async def weighin(interaction: discord.Interaction, loss: str):
     data = load_data()
     user_id = str(interaction.user.id)
 
-    try:
-        loss_value = parse_loss(loss)
-    except:
-        await interaction.response.send_message("❌ Enter a valid number (e.g. 2.5)")
-        return
+    loss_value = parse_loss(loss)
 
-    if loss_value <= 0:
-        await interaction.response.send_message("❌ Must be a positive number.")
-        return
+    # ALL TIME
+    if user_id not in data["all_time"]:
+        data["all_time"][user_id] = {"total_loss": 0}
 
-    if user_id not in data:
-        data[user_id] = {
-            "total_loss": 0,
-            "entries": []
-        }
+    data["all_time"][user_id]["total_loss"] += loss_value
 
-    data[user_id]["total_loss"] += loss_value
-    data[user_id]["entries"].append(loss_value)
+    # WEEKLY
+    if data["weekly"]["start_date"] is None:
+        data["weekly"]["start_date"] = datetime.utcnow().strftime("%Y-%m-%d")
+
+    if user_id not in data["weekly"]["users"]:
+        data["weekly"]["users"][user_id] = {"total_loss": 0}
+
+    data["weekly"]["users"][user_id]["total_loss"] += loss_value
 
     save_data(data)
 
@@ -58,25 +63,21 @@ async def weighin(interaction: discord.Interaction, loss: str):
         f"💀 Logged: -{loss_value}lbs lost"
     )
 
-# ------------------ LEADERBOARD ------------------
+# ------------------ ALL TIME LEADERBOARD ------------------
 
-@tree.command(name="leaderboard", description="Show Mafia leaderboard")
+@tree.command(name="leaderboard", description="All-time leaderboard")
 async def leaderboard(interaction: discord.Interaction):
     data = load_data()
 
-    if not data:
-        await interaction.response.send_message("No data yet.")
-        return
-
     ranking = sorted(
-        data.items(),
+        data["all_time"].items(),
         key=lambda x: x[1]["total_loss"],
         reverse=True
     )
 
     embed = discord.Embed(
-        title="💀 MAFIA WEIGHT LOSS LEADERBOARD 💀",
-        description="Ranked by total lbs lost",
+        title="💀 ALL-TIME MAFIA LEADERBOARD 💀",
+        description="Total lbs lost",
         color=0x1a1a1a
     )
 
@@ -84,20 +85,49 @@ async def leaderboard(interaction: discord.Interaction):
 
     for i, (uid, info) in enumerate(ranking[:10]):
         user = await client.fetch_user(int(uid))
-        loss = info["total_loss"]
 
-        if i < 3:
-            rank = medals[i]
-        else:
-            rank = f"🕶️ SOLDIER #{i+1}"
+        rank = medals[i] if i < 3 else f"🕶️ SOLDIER #{i+1}"
 
         embed.add_field(
             name=f"{rank} — {user.name}",
-            value=f"🔥 {loss:.2f} lbs lost",
+            value=f"🔥 {info['total_loss']:.2f} lbs",
             inline=False
         )
 
-    embed.set_footer(text="Mafia Weight Loss League 💀")
+    await interaction.response.send_message(embed=embed)
+
+# ------------------ WEEKLY LEADERBOARD ------------------
+
+@tree.command(name="weekly", description="Weekly leaderboard")
+async def weekly(interaction: discord.Interaction):
+    data = load_data()
+
+    start_date = data["weekly"]["start_date"] or "Not started yet"
+
+    ranking = sorted(
+        data["weekly"]["users"].items(),
+        key=lambda x: x[1]["total_loss"],
+        reverse=True
+    )
+
+    embed = discord.Embed(
+        title="📅 WEEKLY MAFIA LEADERBOARD 📅",
+        description=f"Week started: **{start_date}**",
+        color=0x2b2b2b
+    )
+
+    medals = ["🥇 DON", "🥈 CAPO", "🥉 UNDERBOSS"]
+
+    for i, (uid, info) in enumerate(ranking[:10]):
+        user = await client.fetch_user(int(uid))
+
+        rank = medals[i] if i < 3 else f"🕶️ SOLDIER #{i+1}"
+
+        embed.add_field(
+            name=f"{rank} — {user.name}",
+            value=f"🔥 {info['total_loss']:.2f} lbs",
+            inline=False
+        )
 
     await interaction.response.send_message(embed=embed)
 
@@ -108,62 +138,49 @@ async def progress(interaction: discord.Interaction):
     data = load_data()
     user_id = str(interaction.user.id)
 
-    if user_id not in data:
+    if user_id not in data["all_time"]:
         await interaction.response.send_message("No records yet.")
         return
 
-    user = data[user_id]
+    total = data["all_time"][user_id]["total_loss"]
 
     await interaction.response.send_message(
-        f"📊 You’ve lost **{user['total_loss']:.2f} lbs** total"
+        f"📊 You’ve lost **{total:.2f} lbs** total (all-time)"
     )
 
-# ------------------ RESET ------------------
+# ------------------ RESET WEEK ------------------
 
-@tree.command(name="resetcompetition", description="Reset leaderboard (admin only)")
-async def resetcompetition(interaction: discord.Interaction):
+@tree.command(name="resetweek", description="Reset weekly leaderboard (admin only)")
+async def resetweek(interaction: discord.Interaction):
     if not interaction.user.guild_permissions.administrator:
         await interaction.response.send_message("❌ Admin only.")
         return
 
-    save_data({})
-    await interaction.response.send_message("💣 Competition reset.")
+    data = load_data()
+
+    data["weekly"] = {
+        "start_date": datetime.utcnow().strftime("%Y-%m-%d"),
+        "users": {}
+    }
+
+    save_data(data)
+
+    await interaction.response.send_message("📅 Weekly leaderboard reset.")
 
 # ------------------ HELP ------------------
 
-@tree.command(name="help", description="Show Mafia bot commands")
+@tree.command(name="help", description="Show commands")
 async def help_command(interaction: discord.Interaction):
     embed = discord.Embed(
-        title="💀 Mafia Weight Loss Bot Help",
-        description="Available commands:",
+        title="💀 Mafia Weight Loss Bot",
         color=0x111111
     )
 
-    embed.add_field(
-        name="/weighin loss: X",
-        value="Log weight lost in lbs (example: 2.5)",
-        inline=False
-    )
-
-    embed.add_field(
-        name="/leaderboard",
-        value="Shows mafia rankings",
-        inline=False
-    )
-
-    embed.add_field(
-        name="/progress",
-        value="Shows your total weight loss",
-        inline=False
-    )
-
-    embed.add_field(
-        name="/resetcompetition",
-        value="(Admin only) resets leaderboard",
-        inline=False
-    )
-
-    embed.set_footer(text="Mafia Weight Loss League 💀")
+    embed.add_field(name="/weighin", value="Log lbs lost", inline=False)
+    embed.add_field(name="/leaderboard", value="All-time leaderboard", inline=False)
+    embed.add_field(name="/weekly", value="Weekly leaderboard", inline=False)
+    embed.add_field(name="/progress", value="Your total loss", inline=False)
+    embed.add_field(name="/resetweek", value="Reset weekly board (admin)", inline=False)
 
     await interaction.response.send_message(embed=embed)
 
