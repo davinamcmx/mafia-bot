@@ -11,7 +11,7 @@ intents = discord.Intents.default()
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
-# ------------------ SAFE DATA LOAD ------------------
+# ------------------ DATA ------------------
 
 def load_data():
     if not os.path.exists(DATA_FILE):
@@ -100,9 +100,9 @@ async def gain(interaction: discord.Interaction, amount: str):
 
     await interaction.response.send_message(f"⚠️ GAIN logged: +{value}lbs")
 
-# ------------------ PROGRESS ------------------
+# ------------------ PROGRESS (NET ONLY) ------------------
 
-@tree.command(name="progress", description="Check your progress")
+@tree.command(name="progress", description="Check your total progress")
 async def progress(interaction: discord.Interaction):
     data = load_data()
     user_id = str(interaction.user.id)
@@ -113,10 +113,11 @@ async def progress(interaction: discord.Interaction):
 
     loss = data["all_time"][user_id]["loss"]
     gain = data["all_time"][user_id]["gain"]
+
     net = loss - gain
 
     await interaction.response.send_message(
-        f"📊 LOSS: {loss:.2f} lbs\n⚠️ GAIN: {gain:.2f} lbs\n🔥 NET: {net:.2f} lbs"
+        f"📊 Total progress: **{net:.2f} lbs**"
     )
 
 # ------------------ ALL-TIME LEADERBOARD ------------------
@@ -218,10 +219,10 @@ async def help_command(interaction: discord.Interaction):
 
     embed.add_field(name="/loss", value="Log weight loss", inline=False)
     embed.add_field(name="/gain", value="Log weight gain", inline=False)
-    embed.add_field(name="/progress", value="View your stats", inline=False)
+    embed.add_field(name="/progress", value="Show total progress (net)", inline=False)
     embed.add_field(name="/leaderboard", value="All-time leaderboard", inline=False)
     embed.add_field(name="/weekly", value="Weekly leaderboard", inline=False)
-    embed.add_field(name="/resetweek", value="Reset weekly leaderboard", inline=False)
+    embed.add_field(name="/resetweek", value="Reset weekly board", inline=False)
 
     await interaction.response.send_message(embed=embed)
 
