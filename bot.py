@@ -69,7 +69,9 @@ async def loss(interaction: discord.Interaction, amount: str):
 
     save_data(data)
 
-    await interaction.response.send_message(f"💀 LOSS logged: -{value}lbs")
+    await interaction.response.send_message(
+        f"💀 The weight drops… (-{value}lbs)"
+    )
 
 # ------------------ GAIN ------------------
 
@@ -98,7 +100,9 @@ async def gain(interaction: discord.Interaction, amount: str):
 
     save_data(data)
 
-    await interaction.response.send_message(f"⚠️ GAIN logged: +{value}lbs")
+    await interaction.response.send_message(
+        f"⚠️ The discipline slips… (+{value}lbs)"
+    )
 
 # ------------------ PROGRESS ------------------
 
@@ -117,7 +121,7 @@ async def progress(interaction: discord.Interaction):
     net = loss - gain
 
     await interaction.response.send_message(
-        f"📊 Total progress: **{net:.2f} lbs**"
+        f"📊 Progress report: **{net:.2f} lbs**"
     )
 
 # ------------------ ALL-TIME LEADERBOARD ------------------
@@ -153,7 +157,7 @@ async def leaderboard(interaction: discord.Interaction):
 
     await interaction.response.send_message(embed=embed)
 
-# ------------------ WEEKLY LEADERBOARD (UPDATED) ------------------
+# ------------------ WEEKLY LEADERBOARD + GROUP STATS ------------------
 
 @tree.command(name="weekly", description="Weekly leaderboard")
 async def weekly(interaction: discord.Interaction):
@@ -167,13 +171,11 @@ async def weekly(interaction: discord.Interaction):
         reverse=True
     )
 
-    # ---------------- GROUP TOTAL ----------------
     total_group = 0
 
     for user in data["weekly"]["users"].values():
         total_group += (user["loss"] - user["gain"])
 
-    # ---------------- MAFIA STATUS ----------------
     if total_group > 20:
         status = "🔥 The Mafia is on a HEAVY cut — discipline is strong."
     elif total_group > 0:
@@ -241,7 +243,7 @@ async def help_command(interaction: discord.Interaction):
 
     embed.add_field(name="/loss", value="Log weight loss", inline=False)
     embed.add_field(name="/gain", value="Log weight gain", inline=False)
-    embed.add_field(name="/progress", value="Show total progress (net)", inline=False)
+    embed.add_field(name="/progress", value="Progress report", inline=False)
     embed.add_field(name="/leaderboard", value="All-time leaderboard", inline=False)
     embed.add_field(name="/weekly", value="Weekly leaderboard + group stats", inline=False)
     embed.add_field(name="/resetweek", value="Reset weekly board", inline=False)
