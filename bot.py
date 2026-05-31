@@ -30,40 +30,58 @@ def save_data(data):
     with open(DATA_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
-def parse_loss(loss):
-    return float(loss.replace("lbs", "").replace("lb", "").strip())
+def parse_loss(amount):
+    return float(amount.replace("lbs", "").replace("lb", "").strip())
 
-# ------------------ WEIGH IN ------------------
+# ------------------ WEIGH (LOSS / GAIN) ------------------
 
-@tree.command(name="weighin", description="Log weight lost in lbs")
-async def weighin(interaction: discord.Interaction, loss: str):
+@tree.command(name="weigh", description="Log weight change (loss or gain)")
+async def weigh(interaction: discord.Interaction, type: str, amount: str):
     data = load_data()
     user_id = str(interaction.user.id)
 
-    loss_value = parse_loss(loss)
+    try:
+        value = parse_loss(amount)
+    except:
+        await interaction.response.send_message("❌ Enter a valid number (e.g. 2.5)")
+        return
 
-    # ALL TIME
+    if value <= 0:
+        await interaction.response.send_message("❌ Must be a positive number.")
+        return
+
+    # create user data if missing
     if user_id not in data["all_time"]:
         data["all_time"][user_id] = {"total_loss": 0}
-
-    data["all_time"][user_id]["total_loss"] += loss_value
-
-    # WEEKLY
-    if data["weekly"]["start_date"] is None:
-        data["weekly"]["start_date"] = datetime.utcnow().strftime("%Y-%m-%d")
 
     if user_id not in data["weekly"]["users"]:
         data["weekly"]["users"][user_id] = {"total_loss": 0}
 
-    data["weekly"]["users"][user_id]["total_loss"] += loss_value
+    if data["weekly"]["start_date"] is None:
+        data["weekly"]["start_date"] = datetime.utcnow().strftime("%Y-%m-%d")
+
+    # ---------------- LOGIC ----------------
+
+    if type.lower() == "loss":
+        change = value
+        msg = f"💀 LOSS logged: -{value}lbs"
+
+    elif type.lower() == "gain":
+        change = -value
+        msg = f"⚠️ GAIN logged: +{value}lbs"
+
+    else:
+        await interaction.response.send_message("❌ Type must be 'loss' or 'gain'")
+        return
+
+    data["all_time"][user_id]["total_loss"] += change
+    data["weekly"]["users"][user_id]["total_loss"] += change
 
     save_data(data)
 
-    await interaction.response.send_message(
-        f"💀 Logged: -{loss_value}lbs lost"
-    )
+    await interaction.response.send_message(msg)
 
-# ------------------ ALL TIME LEADERBOARD ------------------
+# ------------------ ALL-TIME LEADERBOARD ------------------
 
 @tree.command(name="leaderboard", description="All-time leaderboard")
 async def leaderboard(interaction: discord.Interaction):
@@ -176,7 +194,7 @@ async def help_command(interaction: discord.Interaction):
         color=0x111111
     )
 
-    embed.add_field(name="/weighin", value="Log lbs lost", inline=False)
+    embed.add_field(name="/weigh", value="Log loss or gain in lbs", inline=False)
     embed.add_field(name="/leaderboard", value="All-time leaderboard", inline=False)
     embed.add_field(name="/weekly", value="Weekly leaderboard", inline=False)
     embed.add_field(name="/progress", value="Your total loss", inline=False)
